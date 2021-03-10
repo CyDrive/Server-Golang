@@ -1,12 +1,16 @@
 package main
 
 import (
+	"os"
+
+	"github.com/sirupsen/logrus"
 	"github.com/yah01/CyDrive/config"
 	"github.com/yah01/cyflag"
 )
 
 var (
 	dbConfig config.Config
+	log      *logrus.Logger
 
 	isOnline      bool
 	serverAddress string
@@ -14,7 +18,6 @@ var (
 
 func init() {
 	// Parse args
-	//cyflag.BoolVar(&isServer, "--server", false, "whether run as a cdv cdpServer")
 	cyflag.BoolVar(&isOnline, "--online", false, "whether is online")
 	cyflag.StringVar(&serverAddress, "-h", "localhost", "set the CyDrive Server address")
 	cyflag.Parse()
@@ -28,12 +31,15 @@ func init() {
 	//	panic(err)
 	//}
 
-	// Open the log file with level INFO
-	//infoLogFile, err := os.Open("info_log.txt")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//infoLog = log.New(infoLogFile, "INFO", log.LstdFlags)
+	log = logrus.New()
+	logFile,err := os.OpenFile("log", os.O_CREATE|os.O_APPEND, 0777)
+	if err!=nil {
+		panic(err)
+	}
+	log.Out = logFile
+	log.SetNoLock()
+	log.SetReportCaller(true)
+	log.SetFormatter(&logrus.JSONFormatter{})
 }
 
 func main() {

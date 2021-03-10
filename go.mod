@@ -21,11 +21,12 @@ require (
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/pierrec/lz4 v2.5.2+incompatible // indirect
+	github.com/sirupsen/logrus v1.6.0
 	github.com/ulikunitz/xz v0.5.7 // indirect
 	github.com/yah01/cyflag v0.0.0-20200413173245-f97e56b4f8fa
 	golang.org/x/image v0.0.0-20200430140353-33d19683fad8
 	golang.org/x/mobile v0.0.0-20200801112145-973feb4309de // indirect
-	golang.org/x/sys v0.0.0-20200808120158-1030fc2bf1d9 // indirect
+	golang.org/x/sys v0.0.0-20200905004654-be1d3432aa8f // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

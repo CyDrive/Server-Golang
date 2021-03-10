@@ -19,6 +19,7 @@ var (
 )
 
 func InitServer(config config.Config) {
+
 	if config.UserStoreType == "mem" {
 		userStore = store.NewMemStore("user_data/user.json")
 	}
