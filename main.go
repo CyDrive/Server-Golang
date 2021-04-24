@@ -1,11 +1,11 @@
 package main
 
 import (
+	"flag"
 	"os"
 
 	"github.com/sirupsen/logrus"
 	"github.com/yah01/CyDrive/config"
-	"github.com/yah01/cyflag"
 )
 
 var (
@@ -18,9 +18,9 @@ var (
 
 func init() {
 	// Parse args
-	cyflag.BoolVar(&isOnline, "--online", false, "whether is online")
-	cyflag.StringVar(&serverAddress, "-h", "localhost", "set the CyDrive Server address")
-	cyflag.Parse()
+	flag.BoolVar(&isOnline, "--online", false, "whether is online")
+	flag.StringVar(&serverAddress, "-h", "localhost", "set the CyDrive Server address")
+	flag.Parse()
 
 	// Read DB config
 	//dbConfigFile, err := ioutil.ReadFile("db_config.yaml")

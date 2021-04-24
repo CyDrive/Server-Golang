@@ -8,3 +8,4 @@ client/desktop/desktop
 .DS_Store
 client/.DS_Store
 main
+log
