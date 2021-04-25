@@ -87,7 +87,10 @@ func ListHandle(c *gin.Context) {
 	userI, _ := c.Get("user")
 	user := userI.(*model.User)
 
-	path := c.Query("path")
+
+	path := c.Param("path")
+	//path = strings.Trim(path, string(os.PathSeparator))
+
 	path = strings.Trim(path, "/")
 	absPath := filepath.Join(user.RootDir, path)
 
@@ -112,7 +115,8 @@ func GetFileInfoHandle(c *gin.Context) {
 	userI, _ := c.Get("user")
 	user := userI.(*model.User)
 
-	filePath := c.Query("path")
+
+	filePath := c.Param("path")
 	filePath = strings.Trim(filePath, "/")
 	absFilePath := filepath.Join(user.RootDir, filePath)
 
@@ -121,6 +125,47 @@ func GetFileInfoHandle(c *gin.Context) {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
 			Message: err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.Resp{
+		Status:  StatusOk,
+		Message: "get file info done",
+		Data:    fileInfo,
+	})
+}
+
+func PutFileInfoHandle(c *gin.Context) {
+	userI, _ := c.Get("user")
+	user := userI.(*model.User)
+
+	filePath := c.Param("path")
+	filePath = strings.Trim(filePath, string(os.PathSeparator))
+	absFilePath := filepath.Join(user.RootDir, filePath)
+
+	_, err := os.Stat(absFilePath)
+	if err != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusIoError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	len := c.Request.ContentLength
+
+	// 新建一个字节切片，长度与请求报文的内容长度相同
+	fileInfoJson := make([]byte, len)
+	c.Request.Body.Read(fileInfoJson)
+
+	fileInfo := model.FileInfo{}
+	if err := json.Unmarshal(fileInfoJson, &fileInfo); err != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusInternalError,
+			Message: "error when parsing file info",
 			Data:    nil,
 		})
 		return
