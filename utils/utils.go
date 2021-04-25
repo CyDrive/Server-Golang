@@ -5,14 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/yah01/CyDrive/consts"
-	"github.com/yah01/CyDrive/model"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/yah01/CyDrive/consts"
+	"github.com/yah01/CyDrive/model"
 )
 
 const (
@@ -97,7 +98,7 @@ func ForEachRemoteFile(path string,
 		fmt.Println("can't get file info:", path)
 		return
 	}
-	if !fileInfo.IsDir {
+	if !fileInfo.IsDir() {
 		handle(fileInfo)
 		return
 	}

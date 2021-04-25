@@ -1,17 +1,18 @@
 package model
 
 import (
-	"github.com/yah01/CyDrive/consts"
 	"os"
 	"reflect"
+
+	"github.com/yah01/CyDrive/consts"
 )
 
 type FileInfo struct {
 	FileMode     uint32 `json:"file_mode"`
 	ModifyTime   int64  `json:"modify_time"`
 	FilePath     string `json:"file_path"`
-	Size         int64  `json:"size"`
-	IsDir        bool   `json:"is_dir"`
+	Size_        int64  `json:"size"`
+	IsDir_       bool   `json:"is_dir"`
 	IsCompressed bool   `json:"is_compressed"`
 }
 
@@ -20,10 +21,18 @@ func NewFileInfo(fileInfo os.FileInfo, path string) FileInfo {
 		FileMode:     uint32(fileInfo.Mode()),
 		ModifyTime:   fileInfo.ModTime().Unix(),
 		FilePath:     path,
-		Size:         fileInfo.Size(),
-		IsDir:        fileInfo.IsDir(),
+		Size_:         fileInfo.Size(),
+		IsDir_:       fileInfo.IsDir(),
 		IsCompressed: fileInfo.Size() > consts.CompressBaseline,
 	}
+}
+
+func (fileInfo *FileInfo) IsDir() bool {
+	return fileInfo.IsDir_
+}
+
+func (fileInfo *FileInfo) Size() int64 {
+	return fileInfo.Size_
 }
 
 func NewFileInfoFromMap(infoMap map[string]interface{}) *FileInfo {

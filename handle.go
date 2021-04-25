@@ -3,18 +3,24 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
-	. "github.com/yah01/CyDrive/consts"
-	"github.com/yah01/CyDrive/model"
-	"github.com/yah01/CyDrive/utils"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
+	. "github.com/yah01/CyDrive/consts"
+	"github.com/yah01/CyDrive/env"
+	"github.com/yah01/CyDrive/model"
+	"github.com/yah01/CyDrive/utils"
+)
+
+var (
+	localEnv   = env.NewLocalEnv()
+	currentEnv env.Env
 )
 
 func LoginHandle(c *gin.Context) {
@@ -82,10 +88,10 @@ func ListHandle(c *gin.Context) {
 	user := userI.(*model.User)
 
 	path := c.Query("path")
-	path = strings.Trim(path, string(os.PathSeparator))
+	path = strings.Trim(path, "/")
 	absPath := filepath.Join(user.RootDir, path)
 
-	fileList, err := ioutil.ReadDir(absPath)
+	fileList, err := currentEnv.ReadDir(absPath)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -95,15 +101,10 @@ func ListHandle(c *gin.Context) {
 		return
 	}
 
-	resp := make([]model.FileInfo, 0, len(fileList))
-	for _, file := range fileList {
-		resp = append(resp, model.NewFileInfo(file,
-			filepath.Join(path, file.Name())))
-	}
 	c.JSON(http.StatusOK, model.Resp{
 		Status:  StatusOk,
 		Message: "list done",
-		Data:    resp,
+		Data:    fileList,
 	})
 }
 
@@ -112,10 +113,10 @@ func GetFileInfoHandle(c *gin.Context) {
 	user := userI.(*model.User)
 
 	filePath := c.Query("path")
-	filePath = strings.Trim(filePath, string(os.PathSeparator))
+	filePath = strings.Trim(filePath, "/")
 	absFilePath := filepath.Join(user.RootDir, filePath)
 
-	fileInfo, err := os.Stat(absFilePath)
+	fileInfo, err := currentEnv.Stat(absFilePath)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -128,7 +129,7 @@ func GetFileInfoHandle(c *gin.Context) {
 	c.JSON(http.StatusOK, model.Resp{
 		Status:  StatusOk,
 		Message: "get file info done",
-		Data:    model.NewFileInfo(fileInfo, filePath),
+		Data:    fileInfo,
 	})
 }
 
@@ -141,7 +142,7 @@ func DownloadHandle(c *gin.Context) {
 
 	// absolute filepath
 	filePath = filepath.Join(user.RootDir, filePath)
-	fileinfo, _ := os.Stat(filePath)
+	fileinfo, _ := currentEnv.Stat(filePath)
 	if fileinfo.IsDir() {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -158,7 +159,7 @@ func DownloadHandle(c *gin.Context) {
 		begin, end = utils.UnpackRange(bytesRange)
 	}
 
-	file, err := os.Open(filePath)
+	file, err := currentEnv.Open(filePath)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -236,7 +237,7 @@ func UploadHandle(c *gin.Context) {
 
 	filePath := filepath.Join(user.RootDir, fileInfo.FilePath)
 	fileDir := filepath.Dir(filePath)
-	if err := os.MkdirAll(fileDir, 0777); err != nil {
+	if err := currentEnv.MkdirAll(fileDir, 0777); err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusInternalError,
 			Message: err.Error(),
@@ -245,7 +246,7 @@ func UploadHandle(c *gin.Context) {
 		return
 	}
 
-	saveFile, err := os.OpenFile(filePath,
+	saveFile, err := currentEnv.OpenFile(filePath,
 		os.O_RDWR|os.O_CREATE, os.FileMode(fileInfo.FileMode))
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
@@ -276,7 +277,7 @@ func UploadHandle(c *gin.Context) {
 
 	saveFile.Close()
 
-	if err = os.Chtimes(filePath, time.Now(), time.Unix(fileInfo.ModifyTime, 0)); err != nil {
+	if err = currentEnv.Chtimes(filePath, time.Now(), time.Unix(fileInfo.ModifyTime, 0)); err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusInternalError,
 			Message: err.Error(),
@@ -297,14 +298,14 @@ func ChangeDirHandle(c *gin.Context) {
 	user := userInterface.(*model.User)
 
 	path := c.Query("path")
-	path = strings.Trim(path, string(os.PathSeparator))
+	path = strings.Trim(path, "/")
 	mkdir := c.Query("mkdir")
 
 	var err error
 
 	path = filepath.Join(user.RootDir, path)
 	if mkdir == "1" {
-		if err = os.MkdirAll(path, 0666); err != nil {
+		if err = currentEnv.MkdirAll(path, 0666); err != nil {
 			c.JSON(http.StatusOK, model.Resp{
 				Status:  StatusInternalError,
 				Message: err.Error(),
@@ -314,7 +315,7 @@ func ChangeDirHandle(c *gin.Context) {
 		}
 	}
 
-	_, err = os.Stat(path)
+	_, err = currentEnv.Stat(path)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusInternalError,
@@ -345,7 +346,7 @@ func ChangeDirHandle(c *gin.Context) {
 }
 
 // The client sends a list consist of all files containing modification time and md5
-//func SyncHandle(c *gin.Context) {
+// func SyncHandle(c *gin.Context) {
 //	bodyScanner := bufio.NewScanner(c.Request.Body)
 //
 //	for bodyScanner.Scan() {
@@ -356,6 +357,6 @@ func ChangeDirHandle(c *gin.Context) {
 //		modtime, _ := time.Parse(utils.TimeFormat, splitStr[1])
 //		filename := splitStr[2]
 //
-//		os.Create(filename)
+//		currentEnv.Create(filename)
 //	}
-//}
+// }
