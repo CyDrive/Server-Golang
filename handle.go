@@ -87,9 +87,7 @@ func ListHandle(c *gin.Context) {
 	userI, _ := c.Get("user")
 	user := userI.(*model.User)
 
-
 	path := c.Param("path")
-	//path = strings.Trim(path, string(os.PathSeparator))
 
 	path = strings.Trim(path, "/")
 	absPath := filepath.Join(user.RootDir, path)
@@ -114,7 +112,6 @@ func ListHandle(c *gin.Context) {
 func GetFileInfoHandle(c *gin.Context) {
 	userI, _ := c.Get("user")
 	user := userI.(*model.User)
-
 
 	filePath := c.Param("path")
 	filePath = strings.Trim(filePath, "/")
@@ -142,10 +139,10 @@ func PutFileInfoHandle(c *gin.Context) {
 	user := userI.(*model.User)
 
 	filePath := c.Param("path")
-	filePath = strings.Trim(filePath, string(os.PathSeparator))
+	filePath = strings.Trim(filePath, "/")
 	absFilePath := filepath.Join(user.RootDir, filePath)
 
-	_, err := os.Stat(absFilePath)
+	_, err := currentEnv.Stat(absFilePath)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -169,7 +166,8 @@ func PutFileInfoHandle(c *gin.Context) {
 		return
 	}
 
-	openFile, err := os.OpenFile(absFilePath, os.O_RDWR, os.FileMode(fileInfo.FileMode))
+	openFile, err := currentEnv.OpenFile(absFilePath, os.O_RDWR, os.FileMode(fileInfo.FileMode))
+	defer openFile.Close()
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -188,19 +186,20 @@ func PutFileInfoHandle(c *gin.Context) {
 		return
 	}
 
-	if err = os.Chtimes(absFilePath, time.Now(), time.Unix(fileInfo.ModifyTime, 0)); err != nil {
+	if err = currentEnv.Chtimes(absFilePath, time.Now(), time.Unix(fileInfo.ModifyTime, 0)); err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusInternalError,
 			Message: err.Error(),
 			Data:    nil,
 		})
+
 		return
 	}
 
 	c.JSON(http.StatusOK, model.Resp{
 		Status:  StatusOk,
-		Message: "get file info done",
-		Data:    fileInfo,
+		Message: "put file info done",
+		Data:    nil,
 	})
 }
 
