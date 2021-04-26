@@ -156,8 +156,6 @@ func PutFileInfoHandle(c *gin.Context) {
 	}
 
 	len := c.Request.ContentLength
-
-	// 新建一个字节切片，长度与请求报文的内容长度相同
 	fileInfoJson := make([]byte, len)
 	c.Request.Body.Read(fileInfoJson)
 
@@ -166,6 +164,34 @@ func PutFileInfoHandle(c *gin.Context) {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusInternalError,
 			Message: "error when parsing file info",
+			Data:    nil,
+		})
+		return
+	}
+
+	openFile, err := os.OpenFile(absFilePath, os.O_RDWR, os.FileMode(fileInfo.FileMode))
+	if err != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusIoError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	if err = openFile.Chmod(os.FileMode(fileInfo.FileMode)); err != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusInternalError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	if err = os.Chtimes(absFilePath, time.Now(), time.Unix(fileInfo.ModifyTime, 0)); err != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusInternalError,
+			Message: err.Error(),
 			Data:    nil,
 		})
 		return
