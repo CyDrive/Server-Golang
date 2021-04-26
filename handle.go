@@ -167,7 +167,6 @@ func PutFileInfoHandle(c *gin.Context) {
 	}
 
 	openFile, err := currentEnv.OpenFile(absFilePath, os.O_RDWR, os.FileMode(fileInfo.FileMode))
-	defer openFile.Close()
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -176,6 +175,7 @@ func PutFileInfoHandle(c *gin.Context) {
 		})
 		return
 	}
+	defer openFile.Close()
 
 	if err = openFile.Chmod(os.FileMode(fileInfo.FileMode)); err != nil {
 		c.JSON(http.StatusOK, model.Resp{
