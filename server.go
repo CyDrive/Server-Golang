@@ -37,8 +37,11 @@ func RunServer() {
 	//router.Use(SetFileInfo())
 
 	router.POST("/login", LoginHandle)
-	router.GET("/list", ListHandle)
-	router.GET("/get_file_info",GetFileInfoHandle)
+	router.GET("/list/*path", ListHandle)
+
+	router.GET("/file_info/*path", GetFileInfoHandle)
+	router.PUT("/file_info/*path", PutFileInfoHandle)
+
 	router.GET("/download", DownloadHandle)
 	router.POST("/upload", UploadHandle)
 
