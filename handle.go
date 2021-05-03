@@ -90,9 +90,13 @@ func ListHandle(c *gin.Context) {
 	path := c.Param("path")
 
 	path = strings.Trim(path, "/")
-	absPath := filepath.Join(user.RootDir, path)
+	absPath := strings.Join([]string{user.RootDir, path},"/")
 
 	fileList, err := currentEnv.ReadDir(absPath)
+	for i := range fileList {
+		fileList[i].FilePath = strings.ReplaceAll(fileList[i].FilePath,"\\","/")
+		fileList[i].FilePath = strings.TrimPrefix(fileList[i].FilePath,user.RootDir)
+	}
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -102,10 +106,19 @@ func ListHandle(c *gin.Context) {
 		return
 	}
 
+	fileListJson, err := json.Marshal(fileList)
+	if err != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusInternalError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+		return
+	}
 	c.JSON(http.StatusOK, model.Resp{
 		Status:  StatusOk,
 		Message: "list done",
-		Data:    fileList,
+		Data:    string(fileListJson),
 	})
 }
 
