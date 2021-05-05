@@ -42,8 +42,8 @@ func RunServer() {
 	router.GET("/file_info/*path", GetFileInfoHandle)
 	router.PUT("/file_info/*path", PutFileInfoHandle)
 
-	router.GET("/download", DownloadHandle)
-	router.POST("/upload", UploadHandle)
+	router.GET("/file/*path", DownloadHandle)
+	router.POST("/file/*path", UploadHandle)
 
 	router.Run(ListenPort)
 }

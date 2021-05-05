@@ -221,7 +221,7 @@ func DownloadHandle(c *gin.Context) {
 	user := userI.(*model.User)
 
 	// relative path
-	filePath := c.Query("path")
+	filePath := c.Param("path")
 
 	// absolute filepath
 	filePath = filepath.Join(user.RootDir, filePath)
