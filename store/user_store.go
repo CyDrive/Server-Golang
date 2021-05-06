@@ -3,14 +3,15 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
+
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/yah01/CyDrive/config"
 	. "github.com/yah01/CyDrive/consts"
 	"github.com/yah01/CyDrive/model"
-	"io/ioutil"
-	"os"
-	"path/filepath"
+	"github.com/yah01/CyDrive/utils"
 )
 
 type UserStore interface {
@@ -32,8 +33,7 @@ func NewMemStore(userJson string) *MemStore {
 	json.Unmarshal(data, &userArray)
 	for _, user := range userArray {
 		// Get the storage usage
-		rootDirInfo,_ := os.Stat(user.RootDir)
-		user.Usage = rootDirInfo.Size()
+		user.Usage,_ = utils.DirSize(user.RootDir)
 
 		store.userNameMap[user.Username] = user
 	}
