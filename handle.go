@@ -76,10 +76,20 @@ func LoginHandle(c *gin.Context) {
 		return
 	}
 
+	userJson, err := json.Marshal(user.SafeUser)
+	if err != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusInternalError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, model.Resp{
 		Status:  StatusOk,
 		Message: "Welcome to CyDrive!",
-		Data:    nil,
+		Data:    string(userJson),
 	})
 }
 
@@ -90,12 +100,12 @@ func ListHandle(c *gin.Context) {
 	path := c.Param("path")
 
 	path = strings.Trim(path, "/")
-	absPath := strings.Join([]string{user.RootDir, path},"/")
+	absPath := strings.Join([]string{user.RootDir, path}, "/")
 
 	fileList, err := currentEnv.ReadDir(absPath)
 	for i := range fileList {
-		fileList[i].FilePath = strings.ReplaceAll(fileList[i].FilePath,"\\","/")
-		fileList[i].FilePath = strings.TrimPrefix(fileList[i].FilePath,user.RootDir)
+		fileList[i].FilePath = strings.ReplaceAll(fileList[i].FilePath, "\\", "/")
+		fileList[i].FilePath = strings.TrimPrefix(fileList[i].FilePath, user.RootDir)
 	}
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{

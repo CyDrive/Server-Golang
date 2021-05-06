@@ -64,6 +64,5 @@ func (store RdbStore) GetUserByName(name string) *model.User {
 	}
 
 	user.RootDir = filepath.Join(UserDataDir, fmt.Sprint(user.Id))
-	user.WorkDir = user.RootDir
 	return &user
 }
