@@ -308,29 +308,11 @@ func UploadHandle(c *gin.Context) {
 		return
 	}
 
-	fileInfoJson, ok := c.GetQuery("fileinfo")
-	if !ok {
-		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusNoParameterError,
-			Message: "need file info",
-			Data:    nil,
-		})
-		return
-	}
+	filePath := c.Param("path")
 
-	fileInfo := model.FileInfo{}
-	if err := json.Unmarshal([]byte(fileInfoJson), &fileInfo); err != nil {
-		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusInternalError,
-			Message: "error when parsing file info",
-			Data:    nil,
-		})
-		return
-	}
-
-	filePath := filepath.Join(user.RootDir, fileInfo.FilePath)
+	filePath = filepath.Join(user.RootDir, filePath)
 	fileDir := filepath.Dir(filePath)
-	if err := currentEnv.MkdirAll(fileDir, 0777); err != nil {
+	if err := currentEnv.MkdirAll(fileDir, 0666); err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusInternalError,
 			Message: err.Error(),
@@ -340,7 +322,7 @@ func UploadHandle(c *gin.Context) {
 	}
 
 	saveFile, err := currentEnv.OpenFile(filePath,
-		os.O_RDWR|os.O_CREATE, os.FileMode(fileInfo.FileMode))
+		os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -359,25 +341,25 @@ func UploadHandle(c *gin.Context) {
 		return
 	}
 
-	if err = saveFile.Chmod(os.FileMode(fileInfo.FileMode)); err != nil {
-		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusInternalError,
-			Message: err.Error(),
-			Data:    nil,
-		})
-		return
-	}
-
-	saveFile.Close()
-
-	if err = currentEnv.Chtimes(filePath, time.Now(), time.Unix(fileInfo.ModifyTime, 0)); err != nil {
-		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusInternalError,
-			Message: err.Error(),
-			Data:    nil,
-		})
-		return
-	}
+	// if err = saveFile.Chmod(os.FileMode(fileInfo.FileMode)); err != nil {
+	// 	c.JSON(http.StatusOK, model.Resp{
+	// 		Status:  StatusInternalError,
+	// 		Message: err.Error(),
+	// 		Data:    nil,
+	// 	})
+	// 	return
+	// }
+	//
+	// saveFile.Close()
+	//
+	// if err = currentEnv.Chtimes(filePath, time.Now(), time.Unix(fileInfo.ModifyTime, 0)); err != nil {
+	// 	c.JSON(http.StatusOK, model.Resp{
+	// 		Status:  StatusInternalError,
+	// 		Message: err.Error(),
+	// 		Data:    nil,
+	// 	})
+	// 	return
+	// }
 
 	c.JSON(http.StatusOK, model.Resp{
 		Status:  StatusOk,
