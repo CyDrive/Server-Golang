@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -66,6 +67,20 @@ func DirSize(path string) (int64, error) {
 	return size, err
 }
 
+func ReadUntilFull(reader io.Reader, buf []byte) error {
+	totalReadBytes := 0
+	for totalReadBytes < len(buf) {
+		readBytes, err := reader.Read(buf)
+		if err != nil {
+			return err
+		}
+
+		totalReadBytes += readBytes
+	}
+
+	return nil
+}
+
 func ShouldCompressed(fileInfo os.FileInfo) bool {
 	return fileInfo.Size() > consts.CompressBaseline
 }
@@ -103,9 +118,9 @@ func ForEachFile(path string, handle func(file *os.File)) {
 }
 
 func ForEachRemoteFile(path string,
-	getFileInfo func(path string) *model.FileInfo,
-	readDir func(path string) []*model.FileInfo,
-	handle func(file *model.FileInfo)) {
+		getFileInfo func(path string) *model.FileInfo,
+		readDir func(path string) []*model.FileInfo,
+		handle func(file *model.FileInfo)) {
 
 	fileInfo := getFileInfo(path)
 	if fileInfo == nil {
