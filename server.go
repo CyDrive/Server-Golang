@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/gob"
+	"time"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/memstore"
 	"github.com/gin-gonic/gin"
@@ -10,7 +12,6 @@ import (
 	. "github.com/yah01/CyDrive/consts"
 	"github.com/yah01/CyDrive/model"
 	"github.com/yah01/CyDrive/store"
-	"time"
 )
 
 var (
@@ -34,7 +35,7 @@ func RunServer() {
 
 	router.Use(sessions.SessionsMany([]string{"user"}, memStore))
 	router.Use(LoginAuth(router))
-	//router.Use(SetFileInfo())
+	// router.Use(SetFileInfo())
 
 	router.POST("/login", LoginHandle)
 	router.GET("/list/*path", ListHandle)
@@ -45,5 +46,6 @@ func RunServer() {
 	router.GET("/file/*path", DownloadHandle)
 	router.PUT("/file/*path", UploadHandle)
 
+	go ftm.Listen()
 	router.Run(ListenPort)
 }

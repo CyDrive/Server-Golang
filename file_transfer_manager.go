@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	Ftm = NewFileTransferManager()
+	ftm = NewFileTransferManager()
 )
 
 type Task struct {
@@ -42,16 +42,15 @@ type Task struct {
 }
 
 type FileTransferManager struct {
-	taskMap sync.Map
-
-	IdGen *utils.IdGenerator
+	taskMap *sync.Map
+	idGen   *utils.IdGenerator
 }
 
 func NewFileTransferManager() *FileTransferManager {
 	idGen := utils.NewIdGenerator()
 	return &FileTransferManager{
-		taskMap: sync.Map{},
-		IdGen:   idGen,
+		taskMap: &sync.Map{},
+		idGen:   idGen,
 	}
 }
 
@@ -88,6 +87,21 @@ func (ftm *FileTransferManager) Listen() error {
 	}
 }
 
+func (ftm *FileTransferManager) CreateNewTask(fileInfo *model.FileInfo, user *model.User, taskType TaskType, doneBytes int64) int64 {
+	taskId := ftm.idGen.NextAndRef()
+	ftm.taskMap.Store(taskId, &Task{
+		Id:        taskId,
+		FileInfo:  fileInfo,
+		User:      user,
+		Expire:    24 * time.Hour,
+		StartAt:   time.Now(),
+		Type:      taskType,
+		DoneBytes: doneBytes,
+	})
+
+	return taskId
+}
+
 func (ftm *FileTransferManager) DownloadHandle(task *Task) {
 	filePath := filepath.Join(task.User.RootDir, task.FileInfo.FilePath)
 
@@ -97,6 +111,7 @@ func (ftm *FileTransferManager) DownloadHandle(task *Task) {
 		// todo: notify user by message channel
 		return
 	}
+	defer file.Close()
 
 	if _, err = file.Seek(task.DoneBytes, io.SeekStart); err != nil {
 		logrus.Errorf("file seeks to %+v error: %+v", task.DoneBytes, err)
@@ -134,6 +149,7 @@ func (ftm *FileTransferManager) UploadHandle(task *Task) {
 		// todo: notify user by message channel
 		return
 	}
+	defer file.Close()
 
 	totalBytes := task.DoneBytes
 	for {
@@ -161,5 +177,5 @@ func (ftm *FileTransferManager) UploadHandle(task *Task) {
 func (ftm *FileTransferManager) dropTask(task *Task) {
 	task.Conn.Close()
 	ftm.taskMap.Delete(task.Id)
-	ftm.IdGen.UnRef(task.Id)
+	ftm.idGen.UnRef(task.Id)
 }
