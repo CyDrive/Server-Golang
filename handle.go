@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -235,78 +235,33 @@ func DownloadHandle(c *gin.Context) {
 
 	// absolute filepath
 	filePath = filepath.Join(user.RootDir, filePath)
-	fileinfo, _ := currentEnv.Stat(filePath)
-	if fileinfo.IsDir() {
+	fileInfo, _ := currentEnv.Stat(filePath)
+	if fileInfo.IsDir() {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
 			Message: "not a file",
-			Data:    nil,
 		})
 		return
 	}
 
 	// range
-	var begin, end int64 = 0, fileinfo.Size() - 1
+	var begin, _ int64 = 0, fileInfo.Size() - 1
 	bytesRange := c.GetHeader("Range")
 	if len(bytesRange) > 0 {
-		begin, end = utils.UnpackRange(bytesRange)
+		begin, _ = utils.UnpackRange(bytesRange)
 	}
 
-	file, err := currentEnv.Open(filePath)
-	if err != nil {
-		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusIoError,
-			Message: err.Error(),
-			Data:    nil,
-		})
-		return
-	}
-	defer file.Close()
+	taskId := ftm.CreateNewTask(&fileInfo, user, DownloadTaskType, begin)
 
-	if _, err = file.Seek(begin, io.SeekStart); err != nil {
-		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusIoError,
-			Message: err.Error(),
-			Data:    nil,
-		})
-		return
-	}
-
-	c.Header("Range", utils.PackRange(begin, end))
-	if _, err := io.CopyN(c.Writer, file, end-begin+1); err != nil {
-		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusIoError,
-			Message: err.Error(),
-			Data:    nil,
-		})
-		return
-	}
+	c.JSON(http.StatusOK, model.Resp{
+		Status:  StatusOk,
+		Message: fmt.Sprint(taskId),
+	})
 }
 
 func UploadHandle(c *gin.Context) {
-	// Check file size
-	if c.Request.ContentLength > FileSizeLimit {
-		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusFileTooLargeError,
-			Message: "file is too large",
-			Data:    nil,
-		})
-		return
-	}
-
 	userI, _ := c.Get("user")
 	user := userI.(*model.User)
-
-	// Check user storage capability
-	if c.Request.ContentLength+user.Usage > user.Cap {
-		c.JSON(http.StatusOK, model.Resp{
-			Status: StatusFileTooLargeError,
-			Message: fmt.Sprintf("no enough capability, free storage: %vMB",
-				(user.Cap-user.Usage)>>20), // Convert Byte to MB
-			Data: nil,
-		})
-		return
-	}
 
 	filePath := c.Param("path")
 
@@ -316,30 +271,53 @@ func UploadHandle(c *gin.Context) {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusInternalError,
 			Message: err.Error(),
-			Data:    nil,
 		})
 		return
 	}
 
-	saveFile, err := currentEnv.OpenFile(filePath,
-		os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
+	var fileInfo model.FileInfo
+
+	jsonBytes, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
-			Message: err.Error(),
-			Data:    nil,
+			Message: fmt.Sprintf("read request body error: %+v", err),
+		})
+		return
+	}
+	if len(jsonBytes) == 0 || json.Unmarshal(jsonBytes, &fileInfo) != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusInternalError,
+			Message: fmt.Sprintf("need file info"),
 		})
 		return
 	}
 
-	if n, err := io.Copy(saveFile, c.Request.Body); err != nil {
+	// Check file size
+	if fileInfo.Size_ > FileSizeLimit {
 		c.JSON(http.StatusOK, model.Resp{
-			Status:  StatusIoError,
-			Message: fmt.Sprintf("written %v bytes,err: %s", n, err),
-			Data:    nil,
+			Status:  StatusFileTooLargeError,
+			Message: "file is too large",
 		})
 		return
 	}
+
+	// Check user storage capability
+	if fileInfo.Size_ > user.Cap {
+		c.JSON(http.StatusOK, model.Resp{
+			Status: StatusFileTooLargeError,
+			Message: fmt.Sprintf("no enough capability, free storage: %vMiB, and size of the file: %vMiB",
+				(user.Cap-user.Usage)>>20, fileInfo.Size_>>20), // Convert Byte to MB
+		})
+		return
+	}
+
+	taskId := ftm.CreateNewTask(&fileInfo, user, UploadTaskType, fileInfo.Size_)
+
+	c.JSON(http.StatusOK, model.Resp{
+		Status:  StatusOk,
+		Message: fmt.Sprint(taskId),
+	})
 
 	// if err = saveFile.Chmod(os.FileMode(fileInfo.FileMode)); err != nil {
 	// 	c.JSON(http.StatusOK, model.Resp{
@@ -360,10 +338,4 @@ func UploadHandle(c *gin.Context) {
 	// 	})
 	// 	return
 	// }
-
-	c.JSON(http.StatusOK, model.Resp{
-		Status:  StatusOk,
-		Message: "upload done",
-		Data:    nil,
-	})
 }
