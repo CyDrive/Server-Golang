@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/yah01/CyDrive/consts"
 	"github.com/yah01/CyDrive/model"
 	"github.com/yah01/CyDrive/utils"
@@ -63,21 +63,25 @@ func (ftm *FileTransferManager) Listen() error {
 	for {
 		conn, err := listener.AcceptTCP()
 		if err != nil {
-			logrus.Errorf("accept tcp connection error: %+v", err)
+			log.Errorf("accept tcp connection error: %+v", err)
 		}
 
 		go func(conn *net.TCPConn) {
 			bufReader := bufio.NewReader(conn)
-			taskId, err := binary.ReadVarint(bufReader)
+			var taskId int64
+			err := binary.Read(bufReader, binary.LittleEndian, &taskId)
 			if err != nil {
-				logrus.Errorf("read task id error: %+v", err)
+				log.Errorf("read task id error: %+v", err)
+				return
 			}
 
 			taskI, ok := ftm.taskMap.Load(taskId)
 			if !ok {
-				logrus.Errorf("task not exist, taskId=%+v", taskId)
+				log.Errorf("task not exist, taskId=%+v", taskId)
+				return
 			}
 			task := taskI.(*Task)
+			task.Conn = conn
 			if task.Type == DownloadTaskType {
 				go ftm.DownloadHandle(task)
 			} else {
@@ -87,7 +91,7 @@ func (ftm *FileTransferManager) Listen() error {
 	}
 }
 
-func (ftm *FileTransferManager) CreateNewTask(fileInfo *model.FileInfo, user *model.User, taskType TaskType, doneBytes int64) int64 {
+func (ftm *FileTransferManager) AddTask(fileInfo *model.FileInfo, user *model.User, taskType TaskType, doneBytes int64) int64 {
 	taskId := ftm.idGen.NextAndRef()
 	ftm.taskMap.Store(taskId, &Task{
 		Id:        taskId,
@@ -103,18 +107,16 @@ func (ftm *FileTransferManager) CreateNewTask(fileInfo *model.FileInfo, user *mo
 }
 
 func (ftm *FileTransferManager) DownloadHandle(task *Task) {
-	filePath := filepath.Join(task.User.RootDir, task.FileInfo.FilePath)
-
-	file, err := currentEnv.Open(filePath)
+	file, err := currentEnv.Open(task.FileInfo.FilePath)
 	if err != nil {
-		logrus.Errorf("open file %+v error: %+v", filePath, err)
+		log.Errorf("open file %+v error: %+v", task.FileInfo.FilePath, err)
 		// todo: notify user by message channel
 		return
 	}
 	defer file.Close()
 
 	if _, err = file.Seek(task.DoneBytes, io.SeekStart); err != nil {
-		logrus.Errorf("file seeks to %+v error: %+v", task.DoneBytes, err)
+		log.Errorf("file seeks to %+v error: %+v", task.DoneBytes, err)
 	}
 
 	totalBytes := task.DoneBytes
@@ -122,9 +124,9 @@ func (ftm *FileTransferManager) DownloadHandle(task *Task) {
 		written, err := io.Copy(task.Conn, file)
 		if err != nil {
 			if err != io.EOF {
-				logrus.Errorf("upload failed: err=%+v", err)
+				log.Errorf("upload failed: err=%+v", err)
 			} else {
-				logrus.Infof("upload task finish")
+				log.Infof("upload task finish")
 			}
 
 			break
@@ -132,7 +134,7 @@ func (ftm *FileTransferManager) DownloadHandle(task *Task) {
 
 		totalBytes += written
 		if totalBytes >= task.FileInfo.Size_ {
-			logrus.Infof("upload task finish")
+			log.Infof("upload task finish")
 			break
 		}
 	}
@@ -145,7 +147,7 @@ func (ftm *FileTransferManager) UploadHandle(task *Task) {
 
 	file, err := currentEnv.OpenFile(filePath, os.O_CREATE|os.O_APPEND, os.FileMode(task.FileInfo.FileMode))
 	if err != nil {
-		logrus.Errorf("open file %+v error: %+v", filePath, err)
+		log.Errorf("open file %+v error: %+v", filePath, err)
 		// todo: notify user by message channel
 		return
 	}
@@ -156,9 +158,9 @@ func (ftm *FileTransferManager) UploadHandle(task *Task) {
 		written, err := io.Copy(file, task.Conn)
 		if err != nil {
 			if err != io.EOF {
-				logrus.Errorf("upload failed: err=%+v", err)
+				log.Errorf("upload failed: err=%+v", err)
 			} else {
-				logrus.Infof("upload task finish")
+				log.Infof("upload task finish")
 			}
 
 			break
@@ -166,7 +168,7 @@ func (ftm *FileTransferManager) UploadHandle(task *Task) {
 
 		totalBytes += written
 		if totalBytes >= task.FileInfo.Size_ {
-			logrus.Infof("upload task finish")
+			log.Infof("upload task finish")
 			break
 		}
 	}

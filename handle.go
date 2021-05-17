@@ -234,8 +234,9 @@ func DownloadHandle(c *gin.Context) {
 	filePath := c.Param("path")
 
 	// absolute filepath
-	filePath = filepath.Join(user.RootDir, filePath)
+	filePath = strings.Join([]string{user.RootDir, filePath}, "/")
 	fileInfo, _ := currentEnv.Stat(filePath)
+
 	if fileInfo.IsDir() {
 		c.JSON(http.StatusOK, model.Resp{
 			Status:  StatusIoError,
@@ -251,11 +252,24 @@ func DownloadHandle(c *gin.Context) {
 		begin, _ = utils.UnpackRange(bytesRange)
 	}
 
-	taskId := ftm.CreateNewTask(&fileInfo, user, DownloadTaskType, begin)
+	taskId := ftm.AddTask(&fileInfo, user, DownloadTaskType, begin)
+
+	uFileInfo := fileInfo
+	uFileInfo.FilePath, _ = filepath.Rel(user.RootDir, uFileInfo.FilePath)
+	uFileInfo.FilePath = strings.ReplaceAll(uFileInfo.FilePath, "\\", "/")
+	jsonBytes, err := json.Marshal(uFileInfo)
+	if err != nil {
+		c.JSON(http.StatusOK, model.Resp{
+			Status:  StatusInternalError,
+			Message: fmt.Sprintf("serialize file info failed: %+v", err),
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, model.Resp{
 		Status:  StatusOk,
 		Message: fmt.Sprint(taskId),
+		Data:    string(jsonBytes),
 	})
 }
 
@@ -265,7 +279,7 @@ func UploadHandle(c *gin.Context) {
 
 	filePath := c.Param("path")
 
-	filePath = filepath.Join(user.RootDir, filePath)
+	filePath = strings.Join([]string{user.RootDir, filePath}, "/")
 	fileDir := filepath.Dir(filePath)
 	if err := currentEnv.MkdirAll(fileDir, 0666); err != nil {
 		c.JSON(http.StatusOK, model.Resp{
@@ -312,7 +326,7 @@ func UploadHandle(c *gin.Context) {
 		return
 	}
 
-	taskId := ftm.CreateNewTask(&fileInfo, user, UploadTaskType, fileInfo.Size_)
+	taskId := ftm.AddTask(&fileInfo, user, UploadTaskType, fileInfo.Size_)
 
 	c.JSON(http.StatusOK, model.Resp{
 		Status:  StatusOk,
