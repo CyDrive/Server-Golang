@@ -41,7 +41,7 @@ func NewMemStore(userJson string) *MemStore {
 	return &store
 }
 
-func (store MemStore) GetUserByName(name string) *model.User {
+func (store *MemStore) GetUserByName(name string) *model.User {
 	return store.userNameMap[name]
 }
 
@@ -56,7 +56,7 @@ func NewRdbStore(config config.Config) *RdbStore {
 	return &store
 }
 
-func (store RdbStore) GetUserByName(name string) *model.User {
+func (store *RdbStore) GetUserByName(name string) *model.User {
 	var user model.User
 
 	if store.db.First(user, "username = ?", name).RecordNotFound() {

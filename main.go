@@ -4,13 +4,12 @@ import (
 	"flag"
 	"os"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/yah01/CyDrive/config"
 )
 
 var (
 	dbConfig config.Config
-	log      *logrus.Logger
 
 	isOnline      bool
 	serverAddress string
@@ -31,15 +30,13 @@ func init() {
 	//	panic(err)
 	// }
 
-	log = logrus.New()
 	logFile, err := os.OpenFile("log", os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		panic(err)
 	}
-	log.Out = logFile
-	log.SetNoLock()
+	log.SetOutput(logFile)
 	log.SetReportCaller(true)
-	log.SetFormatter(&logrus.JSONFormatter{})
+	log.SetFormatter(&log.JSONFormatter{})
 
 	currentEnv = localEnv
 }
